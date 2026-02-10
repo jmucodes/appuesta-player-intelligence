@@ -732,13 +732,18 @@ body {
         </div>
         <div class="backup-box">
           <h4>📤 Download Full Backup</h4>
-          <p>Download all historical snapshots as a single JSON file. Do this periodically as a safety net.</p>
+          <p>Download all historical snapshots as a single JSON file. Do this monthly.</p>
           <button class="btn btn-green btn-sm" onclick="downloadFullBackup()">Download Backup</button>
         </div>
         <div class="backup-box">
-          <h4>🗑️ Clear All History</h4>
-          <p>Remove all stored data from this browser. Make sure you have a backup first!</p>
-          <button class="btn btn-sm" style="background:rgba(255,87,34,0.15); color:var(--segment-atrisk); border:1px solid rgba(255,87,34,0.3);" onclick="clearAllHistory()">Clear History</button>
+          <h4>📤 Download Latest Snapshot</h4>
+          <p>Re-download the most recent weekly snapshot file.</p>
+          <button class="btn btn-sm" style="background:rgba(41,121,255,.15);color:var(--blue);border:1px solid rgba(41,121,255,.3);" onclick="downloadLatestBackup()">Download Latest</button>
+        </div>
+        <div class="backup-box">
+          <h4>🗑️ Clear All Data</h4>
+          <p>Remove ALL data from this browser. Make sure you have a backup!</p>
+          <button class="btn btn-sm" style="background:rgba(255,87,34,0.15); color:var(--segment-atrisk); border:1px solid rgba(255,87,34,0.3);" onclick="clearAllHistory()">Clear Everything</button>
         </div>
       </div>
       <div id="restoreStatus" style="margin-top:12px; font-size:13px;"></div>
@@ -751,23 +756,16 @@ body {
     <div class="kpi-row" id="kpiRow"></div>
     <div class="segment-row" id="segmentRow"></div>
     <div class="charts-grid">
-      <div class="chart-card"><h3>Segment Distribution</h3><div class="chart-container"><canvas id="segmentPieChart"></canvas></div></div>
-      <div class="chart-card"><h3>Revenue by Segment</h3><div class="chart-container"><canvas id="revenueBarChart"></canvas></div></div>
-      <div class="chart-card"><h3>Player Value Distribution (NGR)</h3><div class="chart-container"><canvas id="valueDistChart"></canvas></div></div>
-      <div class="chart-card"><h3>Recency Distribution (Days Since Last Activity)</h3><div class="chart-container"><canvas id="recencyChart"></canvas></div></div>
+      <div class="chart-card"><h3>Segment Distribution</h3><p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">How your player base breaks down by lifecycle stage. Healthy mix = large Active+VIP, small Churned.</p><div class="chart-container"><canvas id="segmentPieChart"></canvas></div></div>
+      <div class="chart-card"><h3>Revenue by Segment (NGR)</h3><p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Total Net Gaming Revenue per segment. VIP should dominate. Negative = players who won more than they lost.</p><div class="chart-container"><canvas id="revenueBarChart"></canvas></div></div>
+      <div class="chart-card"><h3>Player Value Distribution</h3><p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Histogram of individual player NGR. Players below $0 are net winners against the house.</p><div class="chart-container"><canvas id="valueDistChart"></canvas></div></div>
+      <div class="chart-card"><h3>Recency Distribution</h3><p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Days since each depositor last did something. Peaks at the right = retention problem.</p><div class="chart-container"><canvas id="recencyChart"></canvas></div></div>
     </div>
 
     <div class="definitions-panel">
       <h3>Segment Definitions & Classification Criteria</h3>
-      <div class="def-grid">
-        <div class="def-item seg-registered"><h4>🟣 Registered Only</h4><p>Signed up but never deposited. Top of funnel — convertible with the right nudge.</p><div class="criteria">Criteria: totalDepositCount = 0 AND no sports bets</div></div>
-        <div class="def-item seg-new"><h4>🔵 New</h4><p>Deposited within the onboarding window. Welcome sequences and first-bet bonuses convert these into long-term players.</p><div class="criteria">Criteria: First deposit ≤ 30 days ago AND low activity</div></div>
-        <div class="def-item seg-active"><h4>🟢 Active</h4><p>Regular activity, healthy recency/frequency. Core revenue base — nurture with loyalty, cross-sell sports ↔ casino.</p><div class="criteria">Criteria: Last activity ≤ 14 days AND (3+ deposits OR 5+ bets)</div></div>
-        <div class="def-item seg-vip"><h4>🟡 VIP / Whale</h4><p>Top players by NGR. 2-10% of users often = 50%+ revenue. White-glove treatment required.</p><div class="criteria">Criteria: Active + Top 10% by total NGR</div></div>
-        <div class="def-item seg-cooling"><h4>🟠 Cooling</h4><p>Activity declining — longer gaps, smaller bets. Critical intervention window with highest ROI.</p><div class="criteria">Criteria: Last activity 15-29 days ago AND has history</div></div>
-        <div class="def-item seg-atrisk"><h4>🔴 At-Risk</h4><p>Significant disengagement approaching churn. Aggressive personalized re-engagement needed.</p><div class="criteria">Criteria: Last activity 30-59 days ago AND has deposit history</div></div>
-        <div class="def-item seg-churned"><h4>⚫ Churned</h4><p>No activity beyond churn threshold. Win-back selectively — focus on high-value churned players.</p><div class="criteria">Criteria: Last activity 60+ days ago</div></div>
-      </div>
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">Each player is assigned exactly one segment. All thresholds are adjustable in Settings.</p>
+      <div class="def-grid" id="defGrid"></div>
     </div>
 
     <div class="actions-panel"><h3 style="margin-bottom:16px;">🎯 Recommended CRM Actions This Week</h3><div id="actionsContainer"></div></div>
@@ -833,14 +831,15 @@ body {
 
   <!-- ============ LTV TAB ============ -->
   <div class="section" id="tab-ltv">
-    <div class="kpi-row" style="grid-template-columns:repeat(4,1fr);" id="ltvKpis"></div>
+    <div class="kpi-row" style="grid-template-columns:repeat(5,1fr);" id="ltvKpis"></div>
     <div class="ltv-grid">
-      <div class="chart-card"><h3>LTV by Registration Cohort (Monthly)</h3><div class="chart-container"><canvas id="ltvCohortChart"></canvas></div></div>
-      <div class="chart-card"><h3>LTV by Value Percentile</h3><div class="chart-container"><canvas id="ltvPercentileChart"></canvas></div></div>
+      <div class="chart-card"><h3>LTV by Registration Cohort (Monthly)</h3><p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Average NGR per player by the month they registered. Shows which acquisition periods brought the most valuable players. Blue line = cohort size.</p><div class="chart-container"><canvas id="ltvCohortChart"></canvas></div></div>
+      <div class="chart-card"><h3>LTV by Value Percentile</h3><p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">NGR at each percentile. P50 = median player. P90/P99 = top performers. Large gap between P50 and P90 = high value concentration.</p><div class="chart-container"><canvas id="ltvPercentileChart"></canvas></div></div>
     </div>
     <div class="charts-grid">
+      <div class="chart-card full-width"><h3>LTV Trend Over Time</h3><p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">How average and median LTV change across weekly snapshots. Rising = player base maturing. Falling = losing high-value or acquiring low-value. Needs 2+ snapshots.</p><div class="chart-container"><canvas id="ltvTrendChart"></canvas></div></div>
       <div class="chart-card full-width"><h3>Cohort Retention Overview</h3><div id="cohortHeatmap" style="overflow-x:auto;"></div></div>
-      <div class="chart-card full-width"><h3>Revenue Concentration (Pareto)</h3><div class="chart-container"><canvas id="paretoChart"></canvas></div></div>
+      <div class="chart-card full-width"><h3>Revenue Concentration (Pareto)</h3><p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">What % of total revenue comes from the top X% of players. Further from the diagonal = more concentrated. Industry norm: top 10% = 50-70% of revenue.</p><div class="chart-container"><canvas id="paretoChart"></canvas></div></div>
     </div>
   </div>
 
@@ -859,10 +858,10 @@ body {
       <h3>Segmentation Thresholds</h3>
       <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">Adjust thresholds. Changes apply on next data processing.</p>
       <div class="setting-row"><div class="setting-label">New Player Window<small>Days since first deposit to be "New"</small></div><input class="setting-input" type="number" id="set-newDays" value="30"><span style="font-size:12px;color:var(--text-muted);">days</span></div>
-      <div class="setting-row"><div class="setting-label">Active Recency<small>Max days since last activity for "Active"</small></div><input class="setting-input" type="number" id="set-activeDays" value="14"><span style="font-size:12px;color:var(--text-muted);">days</span></div>
-      <div class="setting-row"><div class="setting-label">Cooling Threshold<small>Max days inactive for "Cooling"</small></div><input class="setting-input" type="number" id="set-coolingDays" value="29"><span style="font-size:12px;color:var(--text-muted);">days</span></div>
-      <div class="setting-row"><div class="setting-label">At-Risk Threshold<small>Max days inactive for "At-Risk"</small></div><input class="setting-input" type="number" id="set-atriskDays" value="59"><span style="font-size:12px;color:var(--text-muted);">days</span></div>
-      <div class="setting-row"><div class="setting-label">Churned Threshold<small>Days inactive = "Churned"</small></div><input class="setting-input" type="number" id="set-churnDays" value="60"><span style="font-size:12px;color:var(--text-muted);">days</span></div>
+      <div class="setting-row"><div class="setting-label">Active Max Days<small>Max days since last activity for "Active"</small></div><input class="setting-input" type="number" id="set-activeDays" value="7"><span style="font-size:12px;color:var(--text-muted);">days</span></div>
+      <div class="setting-row"><div class="setting-label">Cooling Max Days<small>Max days inactive for "Cooling"</small></div><input class="setting-input" type="number" id="set-coolingDays" value="15"><span style="font-size:12px;color:var(--text-muted);">days</span></div>
+      <div class="setting-row"><div class="setting-label">At-Risk Max Days<small>Max days inactive for "At-Risk"</small></div><input class="setting-input" type="number" id="set-atriskDays" value="30"><span style="font-size:12px;color:var(--text-muted);">days</span></div>
+      <div class="setting-row"><div class="setting-label">Churned Days<small>Days inactive = "Churned"</small></div><input class="setting-input" type="number" id="set-churnDays" value="31"><span style="font-size:12px;color:var(--text-muted);">days</span></div>
       <div class="setting-row"><div class="setting-label">VIP Percentile<small>Top N% of active players by NGR</small></div><input class="setting-input" type="number" id="set-vipPct" value="10"><span style="font-size:12px;color:var(--text-muted);">%</span></div>
       <div class="setting-row"><div class="setting-label">Min Deposits for Active<small>Minimum deposit count to qualify</small></div><input class="setting-input" type="number" id="set-minDeposits" value="3"><span style="font-size:12px;color:var(--text-muted);">deposits</span></div>
       <div class="setting-row"><div class="setting-label">Min Sports Bets for Active<small>Alternative qualifier</small></div><input class="setting-input" type="number" id="set-minBets" value="5"><span style="font-size:12px;color:var(--text-muted);">bets</span></div>
@@ -875,8 +874,8 @@ body {
 // ================================================================
 //  GLOBAL STATE
 // ================================================================
-const STORAGE_KEY = 'appuesta_pi_data';
-const SETTINGS_KEY = 'appuesta_pi_settings';
+const STORAGE_KEY = 'appuesta_pi_v3';
+const SETTINGS_KEY = 'appuesta_pi_settings_v3';
 const MAX_SNAPSHOTS = 52; // 1 year of weekly snapshots
 
 let rawFiles = { usd: null, clp: null, betby: null, reg: null };
@@ -895,7 +894,7 @@ const SEGMENT_ORDER = { registered: 0, new: 1, active: 2, vip: 3, cooling: 4, at
 const SEGMENT_NAMES = { registered: 'Registered Only', new: 'New', active: 'Active', vip: 'VIP / Whale', cooling: 'Cooling', atrisk: 'At-Risk', churned: 'Churned' };
 const SEGMENT_COLORS = { registered: '#7c4dff', new: '#2979ff', active: '#00c853', vip: '#ffc107', cooling: '#ff9800', atrisk: '#ff5722', churned: '#9e9e9e' };
 
-let settings = { newDays: 30, activeDays: 14, coolingDays: 29, atriskDays: 59, churnDays: 60, vipPct: 10, minDeposits: 3, minBets: 5 };
+let settings = { newDays: 30, activeDays: 7, coolingDays: 15, atriskDays: 30, churnDays: 31, vipPct: 10, minDeposits: 3, minBets: 5 };
 
 // ================================================================
 //  STORAGE ENGINE
@@ -929,20 +928,20 @@ function saveCurrentSnapshot() {
   const playerMap = {};
   allPlayers.forEach(p => {
     playerMap[p.id] = {
-      segment: p.segment,
-      totalNGR: p.totalNGR,
-      totalDeposits: p.totalDeposits,
-      depositCount: p.depositCount,
-      sportsBets: p.sportsBets,
-      sportsGGR: p.sportsGGR,
-      casinoGGR: p.casinoGGR,
-      daysSinceActivity: p.daysSinceActivity,
-      riskScore: p.riskScore,
-      username: p.username || '',
-      name: p.name || '',
-      email: p.email || '',
-      productType: p.productType || '',
-      currency: p.currency || ''
+      seg: p.segment,
+      ngr: p.totalNGR,
+      dep: p.totalDeposits,
+      dc: p.depositCount,
+      sb: p.sportsBets,
+      sg: p.sportsGGR,
+      cg: p.casinoGGR,
+      da: p.daysSinceActivity,
+      rs: p.riskScore,
+      un: p.username || '',
+      nm: p.name || '',
+      em: p.email || '',
+      pt: p.productType || '',
+      cur: p.currency || ''
     };
   });
   
@@ -953,7 +952,16 @@ function saveCurrentSnapshot() {
     segments[s] = { count: players.length, ngr: players.reduce((sum, p) => sum + p.totalNGR, 0) };
   });
   
-  const snapshot = { date: now.toISOString(), label, totalPlayers: allPlayers.length, segments, players: playerMap };
+  // LTV metrics for trend tracking
+  const depForLtv = allPlayers.filter(p => p.hasAnyActivity);
+  const ltvData = {
+    avg: depForLtv.length > 0 ? depForLtv.reduce((s,p) => s+p.totalNGR, 0) / depForLtv.length : 0,
+    med: getMedian(depForLtv.map(p => p.totalNGR)),
+    total: depForLtv.reduce((s,p) => s+p.totalNGR, 0),
+    depositors: depForLtv.length
+  };
+  
+  const snapshot = { date: now.toISOString(), label, totalPlayers: allPlayers.length, segments, players: playerMap, ltv: ltvData };
   snapshots.push(snapshot);
   saveAllSnapshots(snapshots);
   
@@ -982,6 +990,18 @@ function downloadFullBackup() {
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
   link.download = `appuesta_full_backup_${new Date().toISOString().split('T')[0]}.json`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+function downloadLatestBackup() {
+  const snap = getLastSnapshot();
+  if (!snap) { alert('No snapshots available.'); return; }
+  const data = JSON.stringify(snap, null, 0);
+  const blob = new Blob([data], { type: 'application/json' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `appuesta_snapshot_${new Date(snap.date).toISOString().split('T')[0]}.json`;
   link.click();
   URL.revokeObjectURL(link.href);
 }
@@ -1030,11 +1050,15 @@ function restoreFromBackup(files) {
         updateStorageIndicator();
         renderHistory();
         
-        status.innerHTML = `<span class="alert alert-success">✅ Restored ${imported} new snapshot(s). Total: ${existingSnapshots.length} weeks of history.</span>`;
-        
-        // Load the latest snapshot's player data as previousPlayers
-        const last = getLastSnapshot();
-        if (last) previousPlayers = last.players || {};
+        // Auto-load the latest snapshot into the dashboard
+        const latest = getLastSnapshot();
+        if (latest) {
+          loadSnapIntoUI(latest);
+          status.innerHTML = `<span class="alert alert-success">✅ Restored ${imported} new snapshot(s). Total: ${existingSnapshots.length} weeks. Dashboard loaded with latest data.</span>`;
+          switchTab('dashboard');
+        } else {
+          status.innerHTML = `<span class="alert alert-success">✅ Restored ${imported} new snapshot(s). Total: ${existingSnapshots.length} weeks.</span>`;
+        }
       }
     };
     reader.readAsText(file);
@@ -1047,9 +1071,21 @@ function clearAllHistory() {
   localStorage.removeItem(STORAGE_KEY);
   previousPlayers = {};
   migrations = [];
+  allPlayers = [];
   updateStorageIndicator();
   renderHistory();
-  alert('All history cleared.');
+  // Clear all UI elements
+  document.getElementById('snapshotBadge').textContent = 'No data loaded';
+  ['kpiRow','segmentRow','actionsContainer','migrationSummary','playerTableBody','ltvKpis','cohortHeatmap'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '';
+  });
+  document.getElementById('pagination').innerHTML = '';
+  // Destroy all charts
+  Object.values(charts).forEach(c => { if(c && c.destroy) c.destroy(); });
+  charts = {};
+  switchTab('upload');
+  alert('All data cleared.');
 }
 
 function updateStorageIndicator() {
@@ -1092,6 +1128,55 @@ renderHistory();
 // Load previous snapshot for delta comparison
 const lastSnap = getLastSnapshot();
 if (lastSnap) previousPlayers = lastSnap.players || {};
+
+// ================================================================
+//  AUTO-LOAD LAST SNAPSHOT ON PAGE OPEN
+// ================================================================
+function loadSnapIntoUI(snap) {
+  // Rebuild allPlayers from stored snapshot player map
+  const allSnaps = loadAllSnapshots();
+  const idx = allSnaps.findIndex(s => s.date === snap.date);
+  previousPlayers = {};
+  if (idx > 0) previousPlayers = allSnaps[idx-1].players || {};
+  
+  allPlayers = Object.entries(snap.players).map(([id, p]) => {
+    const prev = previousPlayers[id];
+    return {
+      id, username: p.un || p.username || '', name: p.nm || p.name || '', email: p.em || p.email || '',
+      segment: p.seg || p.segment || 'registered',
+      totalNGR: p.ngr || p.totalNGR || 0, totalDeposits: p.dep || p.totalDeposits || 0,
+      depositCount: p.dc || p.depositCount || 0, sportsBets: p.sb || p.sportsBets || 0,
+      sportsGGR: p.sg || p.sportsGGR || 0, casinoGGR: p.cg || p.casinoGGR || 0,
+      daysSinceActivity: p.da || p.daysSinceActivity || 9999, riskScore: p.rs || p.riskScore || 0,
+      productType: p.pt || p.productType || '', currency: p.cur || p.currency || '',
+      registeredAt: null, lastActivityDate: null, firstActivityDate: null, lastDepositDate: null,
+      firstDepositDate: null, lastWithdrawalDate: null,
+      totalWithdrawals: 0, casinoBets: 0, casinoWins: 0,
+      sportsTurnover: 0, sportsAvgStake: 0, sportsActiveDays: 0, sportsLastBet: null,
+      sportsFirstBet: null, sportsMargin: 0, sportsFreebets: 0, sportsComboShare: 0,
+      hasAnyActivity: (p.dc||p.depositCount||0) > 0 || (p.sb||p.sportsBets||0) > 0,
+      hasDeposited: (p.dc||p.depositCount||0) > 0, hasSportsBets: (p.sb||p.sportsBets||0) > 0,
+      daysSinceFirstDeposit: 999, tenure: 0,
+      prevSegment: prev ? (prev.seg || prev.segment || null) : null,
+      prevNGR: prev ? (prev.ngr || prev.totalNGR || null) : null,
+      ngrDelta: prev ? (p.ngr||p.totalNGR||0) - (prev.ngr||prev.totalNGR||0) : null,
+      newDepositsThisWeek: prev ? (p.dc||p.depositCount||0) - (prev.dc||prev.depositCount||0) : null,
+      newBetsThisWeek: prev ? (p.sb||p.sportsBets||0) - (prev.sb||prev.sportsBets||0) : null
+    };
+  });
+  computeMigrations();
+  renderAll();
+  document.getElementById('snapshotBadge').textContent = `${allPlayers.length} players · ${snap.label || new Date(snap.date).toLocaleDateString()}`;
+}
+
+// Auto-load on page open
+(function() {
+  const snap = getLastSnapshot();
+  if (snap) {
+    loadSnapIntoUI(snap);
+    switchTab('dashboard');
+  }
+})();
 
 // ================================================================
 //  TAB NAV
@@ -1172,6 +1257,10 @@ function processData() {
   status.innerHTML = '<span class="spinner"></span> Processing...';
   setTimeout(() => {
     try {
+      // Load previous snapshot for delta comparison
+      const prevSnap = getLastSnapshot();
+      previousPlayers = prevSnap ? prevSnap.players || {} : {};
+      
       mergeAndSegment();
       computeMigrations();
       saveCurrentSnapshot();
@@ -1274,9 +1363,9 @@ function segmentPlayers() {
     if (!p.hasAnyActivity) return;
     const d = p.daysSinceActivity;
     if (d >= settings.churnDays) { p.segment = 'churned'; p.riskScore = 100; }
-    else if (d >= 30) { p.segment = 'atrisk'; p.riskScore = 60+((d-30)/30)*40; }
-    else if (d >= settings.activeDays+1) { p.segment = 'cooling'; p.riskScore = 30+((d-settings.activeDays)/(30-settings.activeDays))*30; }
-    else {
+    else if (d > settings.coolingDays && d <= settings.atriskDays) { p.segment = 'atrisk'; p.riskScore = 60+((d-settings.coolingDays)/(settings.atriskDays-settings.coolingDays))*40; }
+    else if (d > settings.activeDays && d <= settings.coolingDays) { p.segment = 'cooling'; p.riskScore = 30+((d-settings.activeDays)/(settings.coolingDays-settings.activeDays))*30; }
+    else if (d <= settings.activeDays) {
       const isNew = p.daysSinceFirstDeposit <= settings.newDays && p.depositCount <= 2 && p.sportsBets < settings.minBets;
       if (isNew) { p.segment = 'new'; p.riskScore = 10; }
       else if (p.totalNGR >= vipThreshold && vipThreshold > 0) { p.segment = 'vip'; p.riskScore = 5; }
@@ -1286,14 +1375,30 @@ function segmentPlayers() {
     
     // Attach previous segment for comparison
     const prev = previousPlayers[p.id];
-    p.prevSegment = prev ? prev.segment : null;
-    p.prevNGR = prev ? prev.totalNGR : null;
-    p.ngrDelta = prev ? p.totalNGR - prev.totalNGR : null;
-    p.prevDepositCount = prev ? prev.depositCount : null;
-    p.newDepositsThisWeek = prev ? p.depositCount - prev.depositCount : null;
-    p.prevSportsBets = prev ? prev.sportsBets : null;
-    p.newBetsThisWeek = prev ? p.sportsBets - prev.sportsBets : null;
+    p.prevSegment = prev ? (prev.seg || prev.segment || null) : null;
+    p.prevNGR = prev ? (prev.ngr || prev.totalNGR || null) : null;
+    p.ngrDelta = prev ? p.totalNGR - (prev.ngr || prev.totalNGR || 0) : null;
+    p.prevDepositCount = prev ? (prev.dc || prev.depositCount || null) : null;
+    p.newDepositsThisWeek = prev ? p.depositCount - (prev.dc || prev.depositCount || 0) : null;
+    p.prevSportsBets = prev ? (prev.sb || prev.sportsBets || null) : null;
+    p.newBetsThisWeek = prev ? p.sportsBets - (prev.sb || prev.sportsBets || 0) : null;
   });
+  
+  // Update segment definitions display
+  updateDefGrid();
+}
+
+function updateDefGrid() {
+  const dg = document.getElementById('defGrid');
+  if (!dg) return;
+  dg.innerHTML = `
+    <div class="def-item seg-registered"><h4>🟣 Registered Only</h4><p>Signed up but never deposited or bet. Top of funnel.</p><div class="criteria">Criteria: depositCount = 0 AND sportsBets = 0</div></div>
+    <div class="def-item seg-new"><h4>🔵 New</h4><p>Deposited within ${settings.newDays} days AND low activity (≤ 2 deposits, < ${settings.minBets} bets). Onboarding window.</p><div class="criteria">Criteria: First deposit ≤ ${settings.newDays}d ago, ≤ 2 deposits, < ${settings.minBets} bets</div></div>
+    <div class="def-item seg-active"><h4>🟢 Active</h4><p>Regular activity within ${settings.activeDays} days. Core revenue. Nurture with loyalty, cross-sell.</p><div class="criteria">Criteria: Last activity ≤ ${settings.activeDays}d AND (${settings.minDeposits}+ deposits OR ${settings.minBets}+ bets)</div></div>
+    <div class="def-item seg-vip"><h4>🟡 VIP / Whale</h4><p>Top ${settings.vipPct}% of active players by NGR. Disproportionate revenue contribution.</p><div class="criteria">Criteria: Active + Top ${settings.vipPct}% NGR</div></div>
+    <div class="def-item seg-cooling"><h4>🟠 Cooling</h4><p>Activity declining. ${settings.activeDays+1}-${settings.coolingDays} days inactive. Critical intervention window — highest ROI.</p><div class="criteria">Criteria: Last activity ${settings.activeDays+1}-${settings.coolingDays}d ago</div></div>
+    <div class="def-item seg-atrisk"><h4>🔴 At-Risk</h4><p>Significant disengagement. ${settings.coolingDays+1}-${settings.atriskDays} days inactive. Approaching churn.</p><div class="criteria">Criteria: Last activity ${settings.coolingDays+1}-${settings.atriskDays}d ago</div></div>
+    <div class="def-item seg-churned"><h4>⚫ Churned</h4><p>No activity for ${settings.churnDays}+ days. Win-back selectively by value.</p><div class="criteria">Criteria: Last activity ${settings.churnDays}+d ago</div></div>`;
 }
 
 // ================================================================
@@ -1355,12 +1460,12 @@ function renderDashboard() {
   const hasPrev = !!prevSnap;
 
   document.getElementById('kpiRow').innerHTML = `
-    <div class="kpi-card"><div class="kpi-label">Total Players</div><div class="kpi-value">${allPlayers.length.toLocaleString()}</div><div class="kpi-sub">${depositors.length} depositors (${regToDepRate.toFixed(1)}%)</div></div>
-    <div class="kpi-card"><div class="kpi-label">Total NGR</div><div class="kpi-value">$${fmt(totalNGR)}</div><div class="kpi-sub">Sports + Casino</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total Players</div><div class="kpi-value">${allPlayers.length.toLocaleString()}</div><div class="kpi-sub">${depositors.length} depositors (${regToDepRate.toFixed(1)}% conversion)</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total NGR</div><div class="kpi-value">$${fmt(totalNGR)}</div><div class="kpi-sub">Sports GGR + Casino GGR</div></div>
     <div class="kpi-card"><div class="kpi-label">Avg NGR / Player</div><div class="kpi-value">$${fmt(avgNGR)}</div><div class="kpi-sub">Depositors only</div></div>
-    <div class="kpi-card"><div class="kpi-label">Total Deposits</div><div class="kpi-value">$${fmt(totalDep)}</div><div class="kpi-sub">Net: $${fmt(totalDep-totalWd)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">⚠️ Attention</div><div class="kpi-value" style="color:var(--orange);">${cooling+atRisk}</div><div class="kpi-sub">${cooling} cooling + ${atRisk} at-risk</div></div>
-    <div class="kpi-card"><div class="kpi-label">Migrations</div><div class="kpi-value">${migrations.length}</div><div class="kpi-sub">${migrations.filter(m=>m.direction==='degraded').length} degraded · ${migrations.filter(m=>m.direction==='improved').length} improved</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total Deposits</div><div class="kpi-value">$${fmt(totalDep)}</div><div class="kpi-sub">Net after withdrawals: $${fmt(totalDep-totalWd)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">⚠️ Attention Needed</div><div class="kpi-value" style="color:var(--orange);">${cooling+atRisk}</div><div class="kpi-sub">${cooling} cooling + ${atRisk} at-risk</div></div>
+    <div class="kpi-card"><div class="kpi-label">Segment Migrations</div><div class="kpi-value">${migrations.length}</div><div class="kpi-sub">${migrations.filter(m=>m.direction==='degraded').length} degraded · ${migrations.filter(m=>m.direction==='improved').length} improved</div></div>
   `;
 
   // Segment cards with week-over-week delta
@@ -1570,17 +1675,21 @@ function renderLTV() {
   const dep = allPlayers.filter(p=>p.hasAnyActivity);
   if(dep.length===0) return;
   const totalNGR = dep.reduce((s,p)=>s+p.totalNGR,0);
-  const avgLTV = totalNGR/dep.length;
+  const positivePlayers = dep.filter(p => p.totalNGR > 0);
+  const totalPositiveNGR = positivePlayers.reduce((s,p) => s+p.totalNGR, 0);
+  const negativeCount = dep.filter(p => p.totalNGR < 0).length;
+  const avgLTV = dep.length > 0 ? totalNGR/dep.length : 0;
   const medNGR = getMedian(dep.map(p=>p.totalNGR));
   const sorted = [...dep].sort((a,b)=>b.totalNGR-a.totalNGR);
   const t10c = Math.max(1,Math.ceil(sorted.length*0.1));
   const t10r = sorted.slice(0,t10c).reduce((s,p)=>s+p.totalNGR,0);
-  const t10s = totalNGR>0?(t10r/totalNGR*100):0;
+  const t10s = totalPositiveNGR>0?(t10r/totalPositiveNGR*100):0;
 
   document.getElementById('ltvKpis').innerHTML = `
     <div class="kpi-card"><div class="kpi-label">Avg LTV</div><div class="kpi-value">$${fmt(avgLTV)}</div><div class="kpi-sub">${dep.length} depositors</div></div>
     <div class="kpi-card"><div class="kpi-label">Median LTV</div><div class="kpi-value">$${fmt(medNGR)}</div><div class="kpi-sub">50th percentile</div></div>
-    <div class="kpi-card"><div class="kpi-label">Top 10% Revenue</div><div class="kpi-value">${t10s.toFixed(1)}%</div><div class="kpi-sub">${t10c} players</div></div>
+    <div class="kpi-card"><div class="kpi-label">Top 10% Revenue</div><div class="kpi-value">${t10s.toFixed(1)}%</div><div class="kpi-sub">${t10c} players (of positive NGR)</div></div>
+    <div class="kpi-card"><div class="kpi-label">Negative NGR Players</div><div class="kpi-value">${negativeCount}</div><div class="kpi-sub">${dep.length?((negativeCount/dep.length)*100).toFixed(1):0}% net winners vs house</div></div>
     <div class="kpi-card"><div class="kpi-label">Avg Deposit</div><div class="kpi-value">$${fmt(dep.reduce((s,p)=>s+p.totalDeposits,0)/dep.length)}</div><div class="kpi-sub">Per depositor</div></div>`;
 
   // Cohort
@@ -1596,6 +1705,31 @@ function renderLTV() {
   const pv=pcts.map(p=>{const i=Math.floor(sn.length*p/100);return sn[Math.min(i,sn.length-1)].totalNGR;});
   if(charts.ltvPct)charts.ltvPct.destroy();
   charts.ltvPct = new Chart(document.getElementById('ltvPercentileChart'),{type:'bar',data:{labels:pcts.map(p=>'P'+p),datasets:[{label:'NGR',data:pv,backgroundColor:pcts.map(p=>p>=90?'#ffc107':p>=75?'#00c853':p>=50?'#2979ff':'#8a8d91'),borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{color:'#8a8d91',callback:v=>'$'+fmt(v)},grid:{color:'rgba(255,255,255,0.04)'}},x:{ticks:{color:'#8a8d91'},grid:{display:false}}}}});
+
+  // LTV Trend Over Time
+  const allSnaps = loadAllSnapshots();
+  if (allSnaps.length >= 2) {
+    const trendLabels = allSnaps.map(s => new Date(s.date).toLocaleDateString());
+    const avgData = allSnaps.map(s => s.ltv ? s.ltv.avg : 0);
+    const medData = allSnaps.map(s => s.ltv ? s.ltv.med : 0);
+    const totalData = allSnaps.map(s => s.ltv ? s.ltv.total : 0);
+    if (charts.ltvTrend) charts.ltvTrend.destroy();
+    charts.ltvTrend = new Chart(document.getElementById('ltvTrendChart'), {
+      type: 'line',
+      data: { labels: trendLabels, datasets: [
+        { label: 'Avg LTV', data: avgData, borderColor: '#e4002b', backgroundColor: 'transparent', tension: 0.3, pointRadius: 4 },
+        { label: 'Median LTV', data: medData, borderColor: '#2979ff', backgroundColor: 'transparent', tension: 0.3, pointRadius: 4, borderDash: [5,5] },
+        { label: 'Total NGR', data: totalData, borderColor: '#ffc107', backgroundColor: 'transparent', tension: 0.3, pointRadius: 4, yAxisID: 'y1' }
+      ]},
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#8a8d91' } } },
+        scales: { y: { position: 'left', ticks: { color: '#8a8d91', callback: v => '$'+fmt(v) }, grid: { color: 'rgba(255,255,255,0.04)' }, title: { display: true, text: 'Per Player', color: '#8a8d91' } },
+          y1: { position: 'right', ticks: { color: '#8a8d91', callback: v => '$'+fmt(v) }, grid: { display: false }, title: { display: true, text: 'Total NGR', color: '#8a8d91' } },
+          x: { ticks: { color: '#8a8d91' }, grid: { display: false } } } }
+    });
+  } else {
+    const trendCanvas = document.getElementById('ltvTrendChart');
+    if (trendCanvas) trendCanvas.parentElement.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:40px;">Need 2+ weekly snapshots to show LTV trend.</p>';
+  }
 
   // Pareto
   const ps=[...dep].sort((a,b)=>b.totalNGR-a.totalNGR);
@@ -1629,8 +1763,8 @@ function renderHistory() {
   if(charts.trend)charts.trend.destroy();
   charts.trend = new Chart(document.getElementById('trendChart'),{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#8a8d91'}}},scales:{y:{ticks:{color:'#8a8d91'},grid:{color:'rgba(255,255,255,0.04)'}},x:{ticks:{color:'#8a8d91'},grid:{display:false}}}}});
 
-  let lh='<table class="player-table" style="font-size:12px;"><thead><tr><th>Date</th><th>Total</th><th>New</th><th>Active</th><th>VIP</th><th>Cooling</th><th>At-Risk</th><th>Churned</th><th>Reg Only</th></tr></thead><tbody>';
-  [...snaps].reverse().forEach(h=>{lh+=`<tr><td>${new Date(h.date).toLocaleDateString()}</td><td>${h.totalPlayers}</td><td>${h.segments.new?.count||0}</td><td>${h.segments.active?.count||0}</td><td>${h.segments.vip?.count||0}</td><td>${h.segments.cooling?.count||0}</td><td>${h.segments.atrisk?.count||0}</td><td>${h.segments.churned?.count||0}</td><td>${h.segments.registered?.count||0}</td></tr>`;});
+  let lh='<table class="player-table" style="font-size:12px;"><thead><tr><th>Date</th><th>Total</th><th>New</th><th>Active</th><th>VIP</th><th>Cooling</th><th>At-Risk</th><th>Churned</th><th>Reg Only</th><th>Avg LTV</th></tr></thead><tbody>';
+  [...snaps].reverse().forEach(h=>{lh+=`<tr><td>${new Date(h.date).toLocaleDateString()}</td><td>${h.totalPlayers}</td><td>${h.segments.new?.count||0}</td><td>${h.segments.active?.count||0}</td><td>${h.segments.vip?.count||0}</td><td>${h.segments.cooling?.count||0}</td><td>${h.segments.atrisk?.count||0}</td><td>${h.segments.churned?.count||0}</td><td>${h.segments.registered?.count||0}</td><td>${h.ltv?'$'+fmt(h.ltv.avg):'—'}</td></tr>`;});
   lh+='</tbody></table>';
   document.getElementById('historyList').innerHTML=lh;
 }
