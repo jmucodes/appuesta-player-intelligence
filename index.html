@@ -1141,14 +1141,13 @@ function loadSnapIntoUI(snap) {
   if (idx > 0) previousPlayers = allSnaps[idx-1].players || {};
   
   allPlayers = Object.entries(snap.players).map(([id, p]) => {
-    const prev = previousPlayers[id];
     return {
       id, username: p.un || p.username || '', name: p.nm || p.name || '', email: p.em || p.email || '',
-      segment: p.seg || p.segment || 'registered',
+      segment: 'registered', // Will be recalculated by segmentPlayers()
       totalNGR: p.ngr || p.totalNGR || 0, totalDeposits: p.dep || p.totalDeposits || 0,
       depositCount: p.dc || p.depositCount || 0, sportsBets: p.sb || p.sportsBets || 0,
       sportsGGR: p.sg || p.sportsGGR || 0, casinoGGR: p.cg || p.casinoGGR || 0,
-      daysSinceActivity: p.da || p.daysSinceActivity || 9999, riskScore: p.rs || p.riskScore || 0,
+      daysSinceActivity: p.da || p.daysSinceActivity || 9999, riskScore: 0,
       productType: p.pt || p.productType || '', currency: p.cur || p.currency || '',
       registeredAt: null, lastActivityDate: null, firstActivityDate: null, lastDepositDate: null,
       firstDepositDate: null, lastWithdrawalDate: null,
@@ -1157,14 +1156,12 @@ function loadSnapIntoUI(snap) {
       sportsFirstBet: null, sportsMargin: 0, sportsFreebets: 0, sportsComboShare: 0,
       hasAnyActivity: (p.dc||p.depositCount||0) > 0 || (p.sb||p.sportsBets||0) > 0,
       hasDeposited: (p.dc||p.depositCount||0) > 0, hasSportsBets: (p.sb||p.sportsBets||0) > 0,
-      daysSinceFirstDeposit: 999, tenure: 0,
-      prevSegment: prev ? (prev.seg || prev.segment || null) : null,
-      prevNGR: prev ? (prev.ngr || prev.totalNGR || null) : null,
-      ngrDelta: prev ? (p.ngr||p.totalNGR||0) - (prev.ngr||prev.totalNGR||0) : null,
-      newDepositsThisWeek: prev ? (p.dc||p.depositCount||0) - (prev.dc||prev.depositCount||0) : null,
-      newBetsThisWeek: prev ? (p.sb||p.sportsBets||0) - (prev.sb||prev.sportsBets||0) : null
+      daysSinceFirstDeposit: 999, tenure: 0
     };
   });
+  
+  // Re-run segmentation with CURRENT rules (not stored segments)
+  segmentPlayers();
   computeMigrations();
   renderAll();
   document.getElementById('snapshotBadge').textContent = `${allPlayers.length} players · ${snap.label || new Date(snap.date).toLocaleDateString()}`;
